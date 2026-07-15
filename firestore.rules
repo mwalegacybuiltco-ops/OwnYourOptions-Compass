@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service cloud.firestore {
+  function isOwner(userId) {
+    return request.auth != null && request.auth.uid == userId;
+  }
+
+  function isAdmin() {
+    return request.auth != null &&
+      request.auth.token.email in ["legacybuildersyyc@gmail.com"];
+  }
+
+  match /databases/{database}/documents {
+    match /users/{userId}/{document=**} {
+      allow read, write: if isOwner(userId);
+    }
+
+    match /admin/{document=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

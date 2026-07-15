@@ -1,0 +1,19 @@
+{
+  "name": "OYO Compass",
+  "short_name": "OYO Compass",
+  "description": "Own Your Options coaching for life, clarity, confidence, freedom, goals, wellbeing, business, and community.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f4ec",
+  "theme_color": "#073b3a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
