@@ -22,6 +22,7 @@ An installable PWA for the OYO Own Your Options coaching experience.
 - OYO-inspired dark, gold, purple, and white brand direction
 - Growth Memory profile that tracks stage, focus, patterns, evidence, and milestones
 - Owner-only Admin tab protected by the configured Firebase owner email
+- Admin can preview premium pack, and users can request password reset from the login screen
 
 ## Run Locally
 

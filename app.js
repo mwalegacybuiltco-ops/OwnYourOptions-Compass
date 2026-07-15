@@ -4,6 +4,7 @@ import {
   loadCloudState,
   saveCloudState,
   saveAdminSettings,
+  sendPasswordReset,
   signIn,
   signOutUser,
   startFirebaseAuth
@@ -68,6 +69,7 @@ const starterState = {
     { text: "Write the next version of my future self", done: false },
     { text: "Complete one aligned life action", done: true }
   ],
+  cardShift: 0,
   goals: [
     { title: "Create more peace and freedom", progress: 45, area: "Life" },
     { title: "Deepen daily self-trust", progress: 70, area: "Self" }
@@ -185,7 +187,7 @@ function normalizeState(nextState) {
 }
 
 function todayCard() {
-  const index = new Date().getDate() % cards.length;
+  const index = (new Date().getDate() + (state.cardShift || 0)) % cards.length;
   return cards[index];
 }
 
@@ -249,6 +251,7 @@ function renderLogin() {
         <div class="button-row">
           <button class="btn primary" id="loginBtn" ${setupRequired ? "disabled" : ""}>Sign In</button>
           <button class="btn" id="createAccountBtn" ${setupRequired ? "disabled" : ""}>Create Account</button>
+          <button class="btn ghost" id="resetPasswordBtn" ${setupRequired ? "disabled" : ""}>Reset Password</button>
         </div>
         <p class="login-copyright">© 2026 Own Your Options™. All rights reserved.</p>
       </section>
@@ -373,10 +376,11 @@ function renderDashboard() {
 
 function renderCoach() {
   const growth = growthInsights();
+  const premiumAccess = canAccessPremium();
   return `
     <section class="section-title">
       <div><p class="eyebrow">OYO Compass AI</p><h2>A coach that grows with the whole person.</h2><p>Current memory: ${escapeHtml(growth.stage)} stage, focused on ${escapeHtml(growth.focus.toLowerCase())}.</p></div>
-      ${state.premium ? `<span class="tag premium">Premium depth unlocked</span>` : renderPremiumButton("Unlock premium coaching")}
+      ${premiumAccess ? `<span class="tag premium">Premium depth unlocked</span>` : renderPremiumButton("Unlock premium coaching")}
     </section>
     <section class="memory-strip">
       <div><span class="card-label">Coach Memory</span><strong>${escapeHtml(growth.pattern)}</strong></div>
@@ -498,6 +502,7 @@ function renderVisionJournal() {
 }
 
 function renderCards() {
+  const activeCard = todayCard();
   return `
     <section class="section-title">
       <div><p class="eyebrow">Daily Manifestation</p><h2>Pull the card, choose the evidence.</h2></div>
@@ -508,7 +513,7 @@ function renderCards() {
         .map(
           (card, index) => `
           <div class="prompt-card item">
-            <span class="tag">${index === new Date().getDate() % cards.length ? "Today" : "Card"}</span>
+            <span class="tag">${card.title === activeCard.title ? "Today" : "Card"}</span>
             <strong>${escapeHtml(card.title)}</strong>
             <p class="muted">${escapeHtml(card.prompt)}</p>
           </div>`
@@ -527,15 +532,16 @@ function renderCards() {
 }
 
 function renderExercises() {
+  const premiumAccess = canAccessPremium();
   return `
     <section class="section-title">
       <div><p class="eyebrow">NLP Inspired Exercises</p><h2>Shift the pattern, then move.</h2></div>
-      ${state.premium ? `<span class="tag premium">All exercises available</span>` : renderPremiumButton("Unlock Premium")}
+      ${premiumAccess ? `<span class="tag premium">All exercises available</span>` : renderPremiumButton("Unlock Premium")}
     </section>
     <section class="exercise-grid">
       ${nlpExercises
         .map((exercise) =>
-          exercise.tier === "Premium" && !state.premium
+          exercise.tier === "Premium" && !premiumAccess
             ? renderLockedCard(exercise.title, "Premium exercise")
             : `<div class="item"><span class="tag ${exercise.tier === "Premium" ? "premium" : ""}">${exercise.tier}</span><strong>${escapeHtml(exercise.title)}</strong><p class="muted">${escapeHtml(exercise.body)}</p></div>`
         )
@@ -560,6 +566,10 @@ function renderGoals() {
       </div>
       <div class="module">
         <h2>Goals</h2>
+        <div class="coach-input">
+          <input id="goalText" placeholder="Add a life goal" />
+          <button class="btn primary" id="addGoal">Add Goal</button>
+        </div>
         <div class="list">
           ${state.goals
             .map(
@@ -579,10 +589,11 @@ function renderGoals() {
 
 function renderBusiness() {
   const lwaLink = getAppLink("lwa");
+  const premiumAccess = canAccessPremium();
   return `
     <section class="section-title">
       <div><p class="eyebrow">Life + Business Builder</p><h2>Build a life that your work can support.</h2><p>Business is one option inside the bigger OYO Compass: peace, family, health, purpose, freedom, income, and aligned action.</p></div>
-      ${state.premium ? `<span class="tag premium">Premium life path</span>` : renderPremiumButton("Unlock Builder")}
+      ${premiumAccess ? `<span class="tag premium">Premium life path</span>` : renderPremiumButton("Unlock Builder")}
     </section>
     <section class="module-grid two">
       <div class="module">
@@ -590,7 +601,7 @@ function renderBusiness() {
         <div class="list">
           <div class="item"><span class="tag">Step 1</span><strong>Clarify the life you want</strong><p class="muted">What do you want more of: peace, freedom, health, love, confidence, purpose, time, or income?</p></div>
           <div class="item"><span class="tag">Step 2</span><strong>Choose one aligned option</strong><p class="muted">Take a step that supports your nervous system, relationships, wellbeing, and future self.</p></div>
-          ${state.premium ? `<div class="item"><span class="tag premium">LWA</span><strong>Explore the LWA pathway</strong><p class="muted">Use the premium pathway only when business-building supports the life you are choosing.</p>${lwaLink ? `<a class="btn primary" href="${escapeHtml(lwaLink)}" target="_blank" rel="noopener">Open LWA Link</a>` : `<p class="muted">Add your LWA link in firebase-config.js.</p>`}</div>` : renderLockedCard("LWA pathway", "Premium life and business resource")}
+          ${premiumAccess ? `<div class="item"><span class="tag premium">LWA</span><strong>Explore the LWA pathway</strong><p class="muted">Use the premium pathway only when business-building supports the life you are choosing.</p>${lwaLink ? `<a class="btn primary" href="${escapeHtml(lwaLink)}" target="_blank" rel="noopener">Open LWA Link</a>` : `<p class="muted">Add your LWA link in firebase-config.js.</p>`}</div>` : renderLockedCard("LWA pathway", "Premium life and business resource")}
         </div>
       </div>
       <div class="module accent">
@@ -603,15 +614,16 @@ function renderBusiness() {
 }
 
 function renderLibrary() {
+  const premiumAccess = canAccessPremium();
   return `
     <section class="section-title">
       <div><p class="eyebrow">Resource Library</p><h2>Everything has a home.</h2></div>
-      ${state.premium ? `<span class="tag premium">Premium library open</span>` : renderPremiumButton("Upgrade")}
+      ${premiumAccess ? `<span class="tag premium">Premium library open</span>` : renderPremiumButton("Upgrade")}
     </section>
     <section class="resource-grid">
       ${resources
         .map((resource) =>
-          resource.tier === "Premium" && !state.premium
+          resource.tier === "Premium" && !premiumAccess
             ? renderLockedCard(resource.title, resource.type)
             : `<div class="item"><span class="tag ${resource.tier === "Premium" ? "premium" : ""}">${resource.tier}</span><strong>${escapeHtml(resource.title)}</strong><p class="muted">${escapeHtml(resource.type)}</p></div>`
         )
@@ -621,16 +633,17 @@ function renderLibrary() {
 }
 
 function renderCommunity() {
+  const premiumAccess = canAccessPremium();
   return `
     <section class="section-title">
       <div><p class="eyebrow">Community</p><h2>A built-in circle for owned options.</h2></div>
-      ${state.premium ? `<span class="tag premium">Posting enabled</span>` : renderPremiumButton("Unlock full community")}
+      ${premiumAccess ? `<span class="tag premium">Posting enabled</span>` : renderPremiumButton("Unlock full community")}
     </section>
     <section class="module-grid two">
       <div class="module">
         <h2>Share a Win</h2>
         ${
-          state.premium
+          premiumAccess
             ? `<label class="field"><span>Post</span><textarea id="communityText" placeholder="What option did you own today?"></textarea></label><button class="btn primary" id="addPost">Post</button>`
             : `<div class="paywall"><strong>Free members can read the preview.</strong><p class="muted">Premium members can post, join circles, and access life, mindset, relationships, wellbeing, and business threads.</p>${renderPremiumButton("Upgrade")}</div>`
         }
@@ -683,6 +696,15 @@ function renderAdmin() {
           <div class="item"><span class="tag">Growth</span>Coach memory, stage, pattern, milestones, evidence log.</div>
           <div class="item"><span class="tag">Community</span>Wins, support, and member circles.</div>
           <div class="item"><span class="tag premium">Business</span>LWA and income-building as one pathway inside the whole-life compass.</div>
+        </div>
+      </div>
+      <div class="module">
+        <h2>Premium Pack Preview</h2>
+        <div class="list">
+          <div class="item"><span class="tag premium">Premium</span><strong>NLP Reframe Library</strong><p class="muted">Deeper exercises for identity, belief, future pacing, and parts work.</p></div>
+          <div class="item"><span class="tag premium">Premium</span><strong>Manifestation Card Vault</strong><p class="muted">More daily cards, prompts, and reflection pathways.</p></div>
+          <div class="item"><span class="tag premium">Premium</span><strong>LWA Life + Business Pathway</strong><p class="muted">The business option inside the wider life compass.</p></div>
+          <div class="item"><span class="tag premium">Premium</span><strong>Full Community</strong><p class="muted">Posting, circles, support threads, and deeper member interaction.</p></div>
         </div>
       </div>
       <div class="module">
@@ -752,6 +774,7 @@ function bindEvents() {
   });
 
   document.querySelector("#createAccountBtn")?.addEventListener("click", handleFirebaseCreateAccount);
+  document.querySelector("#resetPasswordBtn")?.addEventListener("click", handlePasswordReset);
 
   document.querySelector("#logoutBtn")?.addEventListener("click", () => {
     if (firebaseEnabled && cloudUser) {
@@ -832,6 +855,21 @@ function bindEvents() {
     render();
   });
 
+  document.querySelector("#addGoal")?.addEventListener("click", () => {
+    const input = document.querySelector("#goalText");
+    if (!input.value.trim()) return;
+    state.goals.unshift({ title: input.value.trim(), progress: 10, area: "Life" });
+    addMilestone("Added a new life goal");
+    saveState();
+    render();
+  });
+
+  document.querySelector("#newCard")?.addEventListener("click", () => {
+    state.cardShift = ((state.cardShift || 0) + 1) % cards.length;
+    saveState();
+    render();
+  });
+
   document.querySelectorAll("[data-action]").forEach((checkbox) => {
     checkbox.addEventListener("change", () => {
       state.actions[Number(checkbox.dataset.action)].done = checkbox.checked;
@@ -907,6 +945,20 @@ async function handleFirebaseCreateAccount() {
   }
 }
 
+async function handlePasswordReset() {
+  const email = document.querySelector("#loginEmail").value.trim();
+  if (!email) {
+    showNotice("Enter your email first, then click Reset Password.");
+    return;
+  }
+  try {
+    await sendPasswordReset(email);
+    showNotice("Password reset email sent. Check your inbox.");
+  } catch (error) {
+    showNotice(error.message);
+  }
+}
+
 function showNotice(message) {
   const notice = document.querySelector("#notice");
   if (notice) notice.textContent = message;
@@ -918,6 +970,10 @@ function showAppMessage(message) {
 
 function isAdmin() {
   return isAdminEmail(state.user?.email);
+}
+
+function canAccessPremium() {
+  return Boolean(state.premium || isAdmin());
 }
 
 function coachReply(text) {

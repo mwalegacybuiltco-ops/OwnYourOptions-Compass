@@ -36,6 +36,10 @@ export async function signIn(email, password) {
   return credential.user;
 }
 
+export async function sendPasswordReset(email) {
+  await authApi.sendPasswordResetEmail(auth, email);
+}
+
 export async function signOutUser() {
   if (!auth) return;
   await authApi.signOut(auth);
